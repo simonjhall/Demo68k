@@ -111,7 +111,7 @@ static bool eval(fixed_point coord_x, fixed_point coord_y, fixed_point res_x, fi
 			x_new = x_new_temp + c_re;
 
 			fixed_point temp_y;
-			temp_y.value = (x.value * y.value) >> (FP_SCALE_SHIFT - 1);
+//			temp_y.value = (x.value * y.value) >> (FP_SCALE_SHIFT - 1);
 			y = temp_y + c_im;
             x = x_new;
 
@@ -163,6 +163,20 @@ void delay(void)
 {
 	for (volatile unsigned int i = 0; i < 1000; i++);
 }
+
+#ifdef HAS_I2C
+void i2c_bits_write(unsigned char b)
+{
+	volatile unsigned char *p = I2C_BASE;
+	*p = b;
+}
+
+unsigned char i2c_bits_read(void)
+{
+	volatile unsigned char *p = I2C_BASE;
+	return *p;
+}
+#endif
 
 #ifdef HAS_PCI
 void pci_io_write8(unsigned int addr, unsigned char v, unsigned int offset)
@@ -265,6 +279,20 @@ extern "C" void _start(void)
 {
 	put_string_user("in loaded user image\n");
 //	mandel();
+
+#ifdef HAS_I2C
+	unsigned char b = 0;
+
+	while (1)
+	{
+		i2c_bits_write(b++);
+
+		volatile unsigned char r = i2c_bits_read();
+
+		trap0(DEBUGGER_UPDATE);
+		delay();
+	}
+#endif
 
 #ifdef HAS_PCI
 	volatile bool config_write_go = false;
