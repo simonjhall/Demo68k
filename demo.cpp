@@ -164,10 +164,18 @@ void delay(void)
 	for (volatile unsigned int i = 0; i < 1000; i++);
 }
 
+void delay_short(void)
+{
+//	for (volatile unsigned int i = 0; i < 10; i++);
+}
+
 #ifdef HAS_I2C
+static unsigned char i2c_state = 0;
+
 void i2c_bits_write(unsigned char b)
 {
 	volatile unsigned char *p = I2C_BASE;
+	i2c_state = b;
 	*p = b;
 }
 
@@ -175,6 +183,241 @@ unsigned char i2c_bits_read(void)
 {
 	volatile unsigned char *p = I2C_BASE;
 	return *p;
+}
+
+void I2C_delay(void);
+
+//bool read_SCL(void);  // Return current level of SCL line, 0 or 1
+
+bool read_SDA(void) // Return current level of SDA line, 0 or 1
+{
+	if (i2c_bits_read() & I2C_SDA_SET)
+		return true;
+	else
+		return false;
+}
+
+void set_SCL(void) // Do not drive SCL (set pin high-impedance)
+{
+	i2c_state |= I2C_SCLK_SET;
+	i2c_bits_write(i2c_state);
+}
+
+void clear_SCL(void) // Actively drive SCL signal low
+{
+	i2c_state &= ~I2C_SCLK_SET;
+	i2c_bits_write(i2c_state);
+}
+
+void set_SDA(void) // Do not drive SDA (set pin high-impedance)
+{
+	i2c_state |= I2C_SDA_SET;
+	i2c_bits_write(i2c_state);
+}
+
+void clear_SDA(void) // Actively drive SDA signal low
+{
+	i2c_state &= ~I2C_SDA_SET;
+	i2c_bits_write(i2c_state);
+}
+
+void arbitration_lost(void)
+{
+}
+
+bool started = false; // global data
+
+void i2c_start_cond(void)
+{
+	if (started)
+	{
+		// if started, do a restart condition
+		// set SDA to 1
+		set_SDA();
+		I2C_delay();
+		set_SCL();
+		/*  while (read_SCL() == 0) { // Clock stretching
+
+		 // You should add timeout to this loop
+
+		 }*/
+		// Repeated start setup time, minimum 4.7us
+		I2C_delay();
+
+	}
+
+	if (read_SDA() == 0)
+	{
+		arbitration_lost();
+	}
+
+	// SCL is high, set SDA from 1 to 0.
+	clear_SDA();
+	I2C_delay();
+	clear_SCL();
+
+	started = true;
+
+}
+
+void i2c_stop_cond(void)
+{
+	// set SDA to 0
+	clear_SDA();
+	I2C_delay();
+	set_SCL();
+
+	/*// Clock stretching
+
+	while (read_SCL() == 0)
+	{
+
+		// add timeout to this loop.
+
+	}*/
+
+	// Stop bit setup time, minimum 4us
+	I2C_delay();
+	// SCL is high, set SDA from 0 to 1
+	set_SDA();
+	I2C_delay();
+
+	if (read_SDA() == 0)
+	{
+		arbitration_lost();
+	}
+
+	started = false;
+}
+
+// Write a bit to I2C bus
+
+void i2c_write_bit(bool bit)
+{
+	if (bit)
+	{
+		set_SDA();
+	}
+	else
+	{
+		clear_SDA();
+	}
+
+	// SDA change propagation delay
+	I2C_delay();
+
+	// Set SCL high to indicate a new valid SDA value is available
+	set_SCL();
+
+	// Wait for SDA value to be read by slave, minimum of 4us for standard mode
+	I2C_delay();
+
+	/*while (read_SCL() == 0)
+	{ // Clock stretching
+
+		// You should add timeout to this loop
+
+	}*/
+
+	// SCL is high, now data is valid
+	// If SDA is high, check that nobody else is driving SDA
+
+	if (bit && (read_SDA() == 0))
+	{
+
+		arbitration_lost();
+
+	}
+
+	// Clear the SCL to low in preparation for next change
+	clear_SCL();
+}
+
+// Read a bit from I2C bus
+
+bool i2c_read_bit(void)
+{
+	bool bit;
+
+	// Let the slave drive data
+	set_SDA();
+
+	// Wait for SDA value to be written by slave, minimum of 4us for standard mode
+	I2C_delay();
+
+	// Set SCL high to indicate a new valid SDA value is available
+	set_SCL();
+
+/*	while (read_SCL() == 0)
+	{ // Clock stretching
+
+		// You should add timeout to this loop
+
+	}*/
+
+	// Wait for SDA value to be written by slave, minimum of 4us for standard mode
+	I2C_delay();
+
+	// SCL is high, read out bit
+	bit = read_SDA();
+
+	// Set SCL low in preparation for next operation
+	clear_SCL();
+
+	return bit;
+}
+
+// Write a byte to I2C bus. Return 0 if ack by the slave.
+bool i2c_write_byte(bool send_start, bool send_stop, unsigned char byte)
+{
+	unsigned bit;
+	bool nack;
+
+	if (send_start)
+	{
+		i2c_start_cond();
+	}
+
+	for (bit = 0; bit < 8; ++bit)
+	{
+		i2c_write_bit((byte & 0x80) != 0);
+		byte <<= 1;
+	}
+
+	nack = i2c_read_bit();
+
+	if (send_stop)
+	{
+		i2c_stop_cond();
+	}
+
+	return nack;
+}
+
+// Read a byte from I2C bus
+unsigned char i2c_read_byte(bool nack, bool send_stop)
+{
+	unsigned char byte = 0;
+	unsigned char bit;
+
+	for (bit = 0; bit < 8; ++bit)
+	{
+		byte = (byte << 1) | i2c_read_bit();
+	}
+
+	i2c_write_bit(nack);
+
+	if (send_stop)
+	{
+		i2c_stop_cond();
+	}
+
+	return byte;
+}
+
+void I2C_delay(void)
+{
+	delay_short();
 }
 #endif
 
@@ -275,23 +518,90 @@ void pci_print(void)
 
 #endif
 
+static const unsigned char g_lm75aAddr =	0b1001000;
+static const unsigned char g_ds3231Addr =	0b1101000;
+
+void screen_demo(void);
+
 extern "C" void _start(void)
 {
 	put_string_user("in loaded user image\n");
 //	mandel();
 
-#ifdef HAS_I2C
-	unsigned char b = 0;
+	int counter = 0;
 
+#ifdef HAS_I2C
+
+	i2c_bits_write(I2C_SDA_SET | I2C_SCLK_SET);
+	screen_demo();
+/*
 	while (1)
 	{
-		i2c_bits_write(b++);
+		i2c_bits_write(I2C_SDA_SET | I2C_SCLK_SET);
 
-		volatile unsigned char r = i2c_bits_read();
+		{
+			i2c_write_byte(true, false, (g_lm75aAddr << 1) | I2C_WRITE_BIT);
+			i2c_write_byte(false, false, 0);
+			i2c_write_byte(true, false, (g_lm75aAddr << 1) | I2C_READ_BIT);
+
+			unsigned char b0 = i2c_read_byte(false, false);
+			unsigned char b1 = i2c_read_byte(true, true);
+
+			put_dec_num_user(counter++, false);
+			put_string_user(" temperature is ");
+
+			put_dec_num_user(b0, false);
+
+			if (b1 & 0x80)
+				put_string_user(".5 deg C\n");
+			else
+				put_string_user(".0 deg C\n");
+		}
+
+		{
+			i2c_write_byte(true, false, (g_ds3231Addr << 1) | I2C_WRITE_BIT);
+			i2c_write_byte(false, false, 0);
+			i2c_write_byte(true, false, (g_ds3231Addr << 1) | I2C_READ_BIT);
+
+			unsigned char b[7];
+			for (int count = 0; count < 7; count++)
+			{
+				b[count] = i2c_read_byte((count == 6) ? true : false, (count == 6) ? true : false);
+				put_hex_byte_user(b[count]);
+			}
+
+			put_char_user('\n');
+
+			unsigned short seconds = (b[0] & 15) + (((b[0] >> 4) & 15) * 10);
+			unsigned short minutes = (b[1] & 15) + (((b[1] >> 4) & 15) * 10);
+			unsigned short hour = (b[2] & 15) + ((b[2] & 0x10) ? 10 : 0) + ((b[2] & 0x20) ? 20 : 0);
+			unsigned short day = b[3];
+			unsigned short date = (b[4] & 15) + (((b[4] >> 4) & 15) * 10);
+			unsigned short month = (b[5] & 15) + (((b[5] >> 4) & 7) * 10);
+			unsigned short year = (b[6] & 15) + (((b[6] >> 4) & 15) * 10);
+
+			put_dec_num_user(date, false);
+			put_char_user('/');
+			put_dec_num_user(month, false);
+			put_char_user('/');
+			put_dec_num_user(year, false);
+
+			put_char_user(' ');
+			put_dec_num_user(hour, false);
+			put_char_user(':');
+			put_dec_num_user(minutes, false);
+			put_char_user(':');
+			put_dec_num_user(seconds, false);
+
+			put_char_user('\n');
+		}
+
 
 		trap0(DEBUGGER_UPDATE);
-		delay();
-	}
+
+		for (int count = 0; count < 50; count++)
+			delay();
+	}*/
 #endif
 
 #ifdef HAS_PCI
