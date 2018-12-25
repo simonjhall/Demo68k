@@ -170,12 +170,12 @@ void delay_short(void)
 }
 
 #ifdef HAS_I2C
-static unsigned char i2c_state = 0;
+//static unsigned char i2c_state = 0;
 
 void i2c_bits_write(unsigned char b)
 {
 	volatile unsigned char *p = I2C_BASE;
-	i2c_state = b;
+//	i2c_state = b;
 	*p = b;
 }
 
@@ -197,25 +197,25 @@ bool read_SDA(void) // Return current level of SDA line, 0 or 1
 		return false;
 }
 
-void set_SCL(void) // Do not drive SCL (set pin high-impedance)
+void set_SCL(unsigned char &i2c_state) // Do not drive SCL (set pin high-impedance)
 {
 	i2c_state |= I2C_SCLK_SET;
 	i2c_bits_write(i2c_state);
 }
 
-void clear_SCL(void) // Actively drive SCL signal low
+void clear_SCL(unsigned char &i2c_state) // Actively drive SCL signal low
 {
 	i2c_state &= ~I2C_SCLK_SET;
 	i2c_bits_write(i2c_state);
 }
 
-void set_SDA(void) // Do not drive SDA (set pin high-impedance)
+void set_SDA(unsigned char &i2c_state) // Do not drive SDA (set pin high-impedance)
 {
 	i2c_state |= I2C_SDA_SET;
 	i2c_bits_write(i2c_state);
 }
 
-void clear_SDA(void) // Actively drive SDA signal low
+void clear_SDA(unsigned char &i2c_state) // Actively drive SDA signal low
 {
 	i2c_state &= ~I2C_SDA_SET;
 	i2c_bits_write(i2c_state);
@@ -225,8 +225,35 @@ void arbitration_lost(void)
 {
 }
 
-bool started = false; // global data
+static bool started = false; // global data
 
+void i2c_start_cond(unsigned char &i2c_state)
+{
+	if (started)
+	{
+		set_SDA(i2c_state);
+		set_SCL(i2c_state);
+	}
+
+	clear_SDA(i2c_state);
+	clear_SCL(i2c_state);
+
+	started = true;
+}
+
+void i2c_stop_cond(unsigned char &i2c_state)
+{
+	// set SDA to 0
+	clear_SDA(i2c_state);
+	set_SCL(i2c_state);
+
+	// SCL is high, set SDA from 0 to 1
+	set_SDA(i2c_state);
+
+	started = false;
+}
+
+#if 0
 void i2c_start_cond(void)
 {
 	if (started)
@@ -236,11 +263,7 @@ void i2c_start_cond(void)
 		set_SDA();
 		I2C_delay();
 		set_SCL();
-		/*  while (read_SCL() == 0) { // Clock stretching
 
-		 // You should add timeout to this loop
-
-		 }*/
 		// Repeated start setup time, minimum 4.7us
 		I2C_delay();
 
@@ -257,7 +280,6 @@ void i2c_start_cond(void)
 	clear_SCL();
 
 	started = true;
-
 }
 
 void i2c_stop_cond(void)
@@ -266,15 +288,6 @@ void i2c_stop_cond(void)
 	clear_SDA();
 	I2C_delay();
 	set_SCL();
-
-	/*// Clock stretching
-
-	while (read_SCL() == 0)
-	{
-
-		// add timeout to this loop.
-
-	}*/
 
 	// Stop bit setup time, minimum 4us
 	I2C_delay();
@@ -290,126 +303,121 @@ void i2c_stop_cond(void)
 	started = false;
 }
 
+#endif
+
 // Write a bit to I2C bus
 
-void i2c_write_bit(bool bit)
+/*void i2c_write_bit(unsigned char &i2c_state, bool bit)
 {
 	if (bit)
 	{
-		set_SDA();
+		set_SDA(i2c_state);
 	}
 	else
 	{
-		clear_SDA();
+		clear_SDA(i2c_state);
 	}
 
-	// SDA change propagation delay
-	I2C_delay();
 
 	// Set SCL high to indicate a new valid SDA value is available
-	set_SCL();
-
-	// Wait for SDA value to be read by slave, minimum of 4us for standard mode
-	I2C_delay();
-
-	/*while (read_SCL() == 0)
-	{ // Clock stretching
-
-		// You should add timeout to this loop
-
-	}*/
+	set_SCL(i2c_state);
 
 	// SCL is high, now data is valid
 	// If SDA is high, check that nobody else is driving SDA
 
-	if (bit && (read_SDA() == 0))
-	{
-
-		arbitration_lost();
-
-	}
-
 	// Clear the SCL to low in preparation for next change
-	clear_SCL();
+	clear_SCL(i2c_state);
+}*/
+
+void i2c_write_bit(unsigned char &i2c_state, bool bit)
+{
+	volatile unsigned char *p = I2C_BASE;
+	register unsigned char s = i2c_state;
+
+	if (bit)
+		s |= I2C_SDA_SET;
+	else
+		s &= ~I2C_SDA_SET;
+
+	*p = s;
+
+	s |= I2C_SCLK_SET;
+	*p = s;
+
+	s &= ~I2C_SCLK_SET;
+	*p = s;
+
+	i2c_state = s;
 }
 
 // Read a bit from I2C bus
 
-bool i2c_read_bit(void)
+bool i2c_read_bit(unsigned char &i2c_state)
 {
 	bool bit;
 
 	// Let the slave drive data
-	set_SDA();
-
-	// Wait for SDA value to be written by slave, minimum of 4us for standard mode
-	I2C_delay();
+	set_SDA(i2c_state);
 
 	// Set SCL high to indicate a new valid SDA value is available
-	set_SCL();
-
-/*	while (read_SCL() == 0)
-	{ // Clock stretching
-
-		// You should add timeout to this loop
-
-	}*/
-
-	// Wait for SDA value to be written by slave, minimum of 4us for standard mode
-	I2C_delay();
+	set_SCL(i2c_state);
 
 	// SCL is high, read out bit
 	bit = read_SDA();
 
 	// Set SCL low in preparation for next operation
-	clear_SCL();
+	clear_SCL(i2c_state);
 
 	return bit;
 }
 
 // Write a byte to I2C bus. Return 0 if ack by the slave.
-bool i2c_write_byte(bool send_start, bool send_stop, unsigned char byte)
+extern "C" void i2c_write_byte_body(unsigned char &i2c_state, unsigned char byte);
+
+bool i2c_write_byte(unsigned char &i2c_state, bool send_start, bool send_stop, unsigned char byte)
 {
 	unsigned bit;
 	bool nack;
 
 	if (send_start)
 	{
-		i2c_start_cond();
+		i2c_start_cond(i2c_state);
 	}
 
 	for (bit = 0; bit < 8; ++bit)
 	{
-		i2c_write_bit((byte & 0x80) != 0);
+		i2c_write_bit(i2c_state, (byte & 0x80) != 0);
 		byte <<= 1;
 	}
 
-	nack = i2c_read_bit();
+//	i2c_write_byte_body(i2c_state, byte);
+
+	nack = i2c_read_bit(i2c_state);
 
 	if (send_stop)
 	{
-		i2c_stop_cond();
+		i2c_stop_cond(i2c_state);
 	}
 
 	return nack;
 }
 
 // Read a byte from I2C bus
-unsigned char i2c_read_byte(bool nack, bool send_stop)
+unsigned char i2c_read_byte(unsigned char &i2c_state, bool nack, bool send_stop)
 {
 	unsigned char byte = 0;
 	unsigned char bit;
 
 	for (bit = 0; bit < 8; ++bit)
 	{
-		byte = (byte << 1) | i2c_read_bit();
+		byte = (byte << 1) | i2c_read_bit(i2c_state);
 	}
 
-	i2c_write_bit(nack);
+	i2c_write_bit(i2c_state, nack);
 
 	if (send_stop)
 	{
-		i2c_stop_cond();
+		i2c_stop_cond(i2c_state);
 	}
 
 	return byte;
