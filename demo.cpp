@@ -5,10 +5,16 @@
  *      Author: simon
  */
 
+#include <stdint.h>
+
 #include "uart.h"
 #include "misc_asm.h"
 #include "inter_process.h"
 #include "common.h"
+
+void screen_init(void);
+void screen_draw_pixel(int16_t x, int16_t y, uint16_t colour);
+void screen_draw(void);
 
 #define FP_SCALE_SHIFT 6
 
@@ -111,7 +117,7 @@ static bool eval(fixed_point coord_x, fixed_point coord_y, fixed_point res_x, fi
 			x_new = x_new_temp + c_re;
 
 			fixed_point temp_y;
-//			temp_y.value = (x.value * y.value) >> (FP_SCALE_SHIFT - 1);
+			temp_y.value = (x.value * y.value) >> (FP_SCALE_SHIFT - 1);
 			y = temp_y + c_im;
             x = x_new;
 
@@ -127,35 +133,32 @@ static bool eval(fixed_point coord_x, fixed_point coord_y, fixed_point res_x, fi
         return false;
 }
 
-static char output[128 * 256];
-
 void mandel(void)
 {
 	const short width_shift = 7;
 	const short height_shift = 8;
 	fixed_point width(1U << width_shift), height(1U << height_shift);
 
-	char *p = output;
-
-	for (fixed_point y; y < height; y.value += (1 << FP_SCALE_SHIFT))
+	for (fixed_point y; y < height; y.value += (2 << FP_SCALE_SHIFT))
 	{
-		for (fixed_point x; x < width; x.value += (1 << FP_SCALE_SHIFT))
+		for (fixed_point x; x < width; x.value += (2 << FP_SCALE_SHIFT))
 		{
 			bool e = eval(x, y, width, height, width_shift, height_shift);
 
 			if (e)
 			{
-				*p++ = 'x';
 				put_char_user('x');
+				screen_draw_pixel(y.value >> (FP_SCALE_SHIFT + 1), x.value >> (FP_SCALE_SHIFT + 1), 1);
 			}
 			else
 			{
-				*p++ = ' ';
 				put_char_user(' ');
+				screen_draw_pixel(y.value >> (FP_SCALE_SHIFT + 1), x.value >> (FP_SCALE_SHIFT + 1), 0);
 			}
 		}
 		put_char_user('\n');
-		*p++ = '\n';
+
+		screen_draw();
 	}
 }
 
@@ -529,11 +532,10 @@ void pci_print(void)
 static const unsigned char g_lm75aAddr =	0b1001000;
 static const unsigned char g_ds3231Addr =	0b1101000;
 
-void screen_demo(void);
-
 extern "C" void _start(void)
 {
 	put_string_user("in loaded user image\n");
+
 //	mandel();
 
 	int counter = 0;
@@ -541,7 +543,10 @@ extern "C" void _start(void)
 #ifdef HAS_I2C
 
 	i2c_bits_write(I2C_SDA_SET | I2C_SCLK_SET);
-	screen_demo();
+
+	screen_init();
+	mandel();
+
 /*
 	while (1)
 	{

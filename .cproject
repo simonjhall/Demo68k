@@ -36,7 +36,7 @@
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/shared68k}&quot;"/>
 								</option>
 								<option id="gnu.cpp.compiler.option.other.other.218891075" name="Other flags" superClass="gnu.cpp.compiler.option.other.other" useByScannerDiscovery="false" value="-c -fmessage-length=0 -fno-exceptions -fno-rtti -msoft-float -mcpu=68000" valueType="string"/>
-								<option id="gnu.cpp.compiler.option.preprocessor.def.77443173" superClass="gnu.cpp.compiler.option.preprocessor.def" valueType="definedSymbols">
+								<option id="gnu.cpp.compiler.option.preprocessor.def.77443173" name="Defined symbols (-D)" superClass="gnu.cpp.compiler.option.preprocessor.def" useByScannerDiscovery="false" valueType="definedSymbols">
 									<listOptionValue builtIn="false" value="USER_MODE"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.cpp.compiler.input.512195152" superClass="cdt.managedbuild.tool.gnu.cpp.compiler.input"/>
@@ -62,10 +62,14 @@
 								<option id="gnu.both.asm.option.include.paths.1556798843" name="Include paths (-I)" superClass="gnu.both.asm.option.include.paths" useByScannerDiscovery="false" valueType="includePath">
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/shared68k}&quot;"/>
 								</option>
+								<option id="gnu.both.asm.option.flags.244468476" superClass="gnu.both.asm.option.flags" value="-g" valueType="string"/>
 								<inputType id="cdt.managedbuild.tool.gnu.assembler.input.484291586" superClass="cdt.managedbuild.tool.gnu.assembler.input"/>
 							</tool>
 						</toolChain>
 					</folderInfo>
+					<sourceEntries>
+						<entry excluding="greets128x64.c|Adafruit_SSD1306/examples" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
+					</sourceEntries>
 				</configuration>
 			</storageModule>
 			<storageModule moduleId="org.eclipse.cdt.core.externalSettings">
@@ -113,7 +117,7 @@
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/shared68k}&quot;"/>
 								</option>
 								<option id="gnu.cpp.compiler.option.other.other.1219535052" name="Other flags" superClass="gnu.cpp.compiler.option.other.other" useByScannerDiscovery="false" value="-c -fmessage-length=0 -fno-exceptions -fno-rtti -msoft-float -mcpu=68000" valueType="string"/>
-								<option id="gnu.cpp.compiler.option.preprocessor.def.1613078884" superClass="gnu.cpp.compiler.option.preprocessor.def" useByScannerDiscovery="false" valueType="definedSymbols">
+								<option id="gnu.cpp.compiler.option.preprocessor.def.1613078884" name="Defined symbols (-D)" superClass="gnu.cpp.compiler.option.preprocessor.def" useByScannerDiscovery="false" valueType="definedSymbols">
 									<listOptionValue builtIn="false" value="USER_MODE"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.cpp.compiler.input.480890837" superClass="cdt.managedbuild.tool.gnu.cpp.compiler.input"/>
@@ -139,10 +143,14 @@
 								<option id="gnu.both.asm.option.include.paths.2035642916" name="Include paths (-I)" superClass="gnu.both.asm.option.include.paths" useByScannerDiscovery="false" valueType="includePath">
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/shared68k}&quot;"/>
 								</option>
+								<option id="gnu.both.asm.option.flags.1810597803" superClass="gnu.both.asm.option.flags" value="-g" valueType="string"/>
 								<inputType id="cdt.managedbuild.tool.gnu.assembler.input.1293446868" superClass="cdt.managedbuild.tool.gnu.assembler.input"/>
 							</tool>
 						</toolChain>
 					</folderInfo>
+					<sourceEntries>
+						<entry excluding="greets128x64.c|Adafruit_SSD1306/examples" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
+					</sourceEntries>
 				</configuration>
 			</storageModule>
 			<storageModule moduleId="org.eclipse.cdt.core.externalSettings">
@@ -175,6 +183,13 @@
 		</scannerConfigBuildInfo>
 	</storageModule>
 	<storageModule moduleId="org.eclipse.cdt.core.LanguageSettingsProviders"/>
-	<storageModule moduleId="refreshScope"/>
+	<storageModule moduleId="refreshScope" versionNumber="2">
+		<configuration configurationName="Debug">
+			<resource resourceType="PROJECT" workspacePath="/Demo"/>
+		</configuration>
+		<configuration configurationName="Release">
+			<resource resourceType="PROJECT" workspacePath="/Demo"/>
+		</configuration>
+	</storageModule>
 	<storageModule moduleId="org.eclipse.cdt.make.core.buildtargets"/>
 </cproject>
